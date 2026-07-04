@@ -35,7 +35,7 @@ export const register = async (req, res) => {
       },
       process.env.JWT_SECRET || "secret123",
       {
-        expiresIn: "7d",
+        expiresIn: "30d",
       }
     )
 
