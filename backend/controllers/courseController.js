@@ -1,6 +1,7 @@
 import Course from "../models/course.js"
 import Enrollment from "../models/Enrollment.js"
 import { extractTextFromFile } from "../utils/extractText.js"
+import { uploadToCloudinary } from "../utils/upload.js"
 
 // ✅ CREATE COURSE
 export const addCourse = async (req, res) => {
@@ -22,16 +23,37 @@ export const addCourse = async (req, res) => {
   } = req.body
 
   try {
-    const thumbnail = req.files?.thumbnail?.[0]?.filename || ""
-    const video = req.files?.video?.[0]?.filename || ""
-    const materialFileObj = req.files?.materialFile?.[0]
-
+    let thumbnail = ""
+    let video = ""
     let materialFile = ""
     let materialText = ""
 
-    if (materialFileObj) {
-      materialFile = materialFileObj.filename
-      materialText = await extractTextFromFile(materialFileObj.path)
+    if (req.files?.thumbnail?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.thumbnail[0].buffer,
+        "skillmind/thumbnails"
+      )
+      thumbnail = result.secure_url
+    }
+
+    if (req.files?.video?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.video[0].buffer,
+        "skillmind/videos"
+      )
+      video = result.secure_url
+    }
+
+    if (req.files?.materialFile?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.materialFile[0].buffer,
+        "skillmind/materials"
+      )
+      materialFile = result.secure_url
+      materialText = await extractTextFromFile(
+        req.files.materialFile[0].buffer,
+        req.files.materialFile[0].originalname
+      )
     }
 
     const course = new Course({
@@ -52,8 +74,7 @@ export const addCourse = async (req, res) => {
       paymentLink: paymentLink || "",
       publishStatus: publishStatus || "published",
       thumbnail,
-      // Prefer an uploaded video file; fall back to a video URL (e.g. YouTube link)
-      videoUrl: video ? `/uploads/${video}` : (videoUrl || ""),
+      videoUrl: video || (videoUrl || ""),
     })
 
     await course.save()
@@ -162,16 +183,32 @@ export const updateCourse = async (req, res) => {
       }
     })
 
-    const thumbnail = req.files?.thumbnail?.[0]?.filename
-    const video = req.files?.video?.[0]?.filename
-    const materialFileObj = req.files?.materialFile?.[0]
+    if (req.files?.thumbnail?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.thumbnail[0].buffer,
+        "skillmind/thumbnails"
+      )
+      update.thumbnail = result.secure_url
+    }
 
-    if (thumbnail) update.thumbnail = thumbnail
-    if (video) update.videoUrl = `/uploads/${video}`
+    if (req.files?.video?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.video[0].buffer,
+        "skillmind/videos"
+      )
+      update.videoUrl = result.secure_url
+    }
 
-    if (materialFileObj) {
-      update.materialFile = materialFileObj.filename
-      update.materialText = await extractTextFromFile(materialFileObj.path)
+    if (req.files?.materialFile?.[0]) {
+      const result = await uploadToCloudinary(
+        req.files.materialFile[0].buffer,
+        "skillmind/materials"
+      )
+      update.materialFile = result.secure_url
+      update.materialText = await extractTextFromFile(
+        req.files.materialFile[0].buffer,
+        req.files.materialFile[0].originalname
+      )
     }
 
     const course = await Course.findByIdAndUpdate(

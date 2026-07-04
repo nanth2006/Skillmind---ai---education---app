@@ -1,22 +1,28 @@
 import multer from "multer"
-import fs from "fs"
+import { v2 as cloudinary } from "cloudinary"
 
-const uploadPath = "uploads/" // 🔥 use 'uploads' (better)
-
-// create folder if not exist
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath)
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath)
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname)
-  }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+// memory la store pannும் (Vercel-safe, disk illa)
+const storage = multer.memoryStorage()
 const upload = multer({ storage })
+
+// buffer ah cloudinary ku upload panra helper
+export const uploadToCloudinary = (fileBuffer, folder = "skillmind") => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto", folder },
+      (error, result) => {
+        if (result) resolve(result)
+        else reject(error)
+      }
+    )
+    stream.end(fileBuffer)
+  })
+}
 
 export default upload

@@ -1,12 +1,20 @@
 import Profile from "../models/Profile.js"
+import { uploadToCloudinary } from "../utils/upload.js"
 
 // ✅ CREATE
 export const createProfile = async (req, res) => {
   try {
+    let avatar = ""
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, "skillmind/avatars")
+      avatar = result.secure_url
+    }
+
     const profile = new Profile({
       ...req.body,
       userId: req.user.id,
-      avatar: req.file ? req.file.filename : ""
+      avatar,
     })
 
     await profile.save()
@@ -34,7 +42,8 @@ export const updateProfile = async (req, res) => {
     const updateData = { ...req.body }
 
     if (req.file) {
-      updateData.avatar = req.file.filename
+      const result = await uploadToCloudinary(req.file.buffer, "skillmind/avatars")
+      updateData.avatar = result.secure_url
     }
 
     const profile = await Profile.findOneAndUpdate(

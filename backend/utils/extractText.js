@@ -1,4 +1,3 @@
-import fs from "fs"
 import path from "path"
 
 // Lazily import the parser libraries so a missing optional dependency
@@ -13,18 +12,17 @@ const tryImport = async (name) => {
   }
 }
 
-export const extractTextFromFile = async (filePath) => {
-  if (!filePath || !fs.existsSync(filePath)) return ""
+export const extractTextFromFile = async (fileBuffer, fileName) => {
+  if (!fileBuffer || !fileName) return ""
 
-  const ext = path.extname(filePath).toLowerCase()
+  const ext = path.extname(fileName).toLowerCase()
 
   try {
     if (ext === ".pdf") {
       const mod = await tryImport("pdf-parse")
       if (!mod) return ""
       const pdfParse = mod.default || mod
-      const buffer = fs.readFileSync(filePath)
-      const data = await pdfParse(buffer)
+      const data = await pdfParse(fileBuffer)
       return (data.text || "").trim()
     }
 
@@ -32,12 +30,12 @@ export const extractTextFromFile = async (filePath) => {
       const mod = await tryImport("mammoth")
       if (!mod) return ""
       const mammoth = mod.default || mod
-      const result = await mammoth.extractRawText({ path: filePath })
+      const result = await mammoth.extractRawText({ buffer: fileBuffer })
       return (result.value || "").trim()
     }
 
     if (ext === ".txt") {
-      return fs.readFileSync(filePath, "utf-8").trim()
+      return fileBuffer.toString("utf-8").trim()
     }
 
     // Unsupported extension (image / video / etc.) — no text to extract
