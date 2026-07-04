@@ -1,14 +1,21 @@
-
 import { extractTextFromFile } from "../utils/extractText.js"
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]
+
+const SYSTEM_PROMPT = `You are a helpful AI tutor. Explain clearly and simply, step by step.
+
+LANGUAGE RULES:
+- If the user writes in Tamil script, reply in Tamil.
+- If the user writes in Tanglish (Tamil words typed in English letters, e.g. "eppadi irukku", "nalla puriyudhu"), reply in Tanglish — Tamil sentences written in English script, mixing in English technical terms naturally.
+- If the user writes in English, reply in English.
+- Always match the user's language and style; never switch to a different language on your own.`
 
 // Builds the messages array depending on whether a file was attached
 const buildMessages = async (message, file) => {
   const userText = message?.trim() || "Please look at the attached file and help me."
 
   const messages = [
-    { role: "system", content: "You are a helpful AI tutor. Explain clearly and simply, step by step." },
+    { role: "system", content: SYSTEM_PROMPT },
   ]
 
   if (file && IMAGE_TYPES.includes(file.mimetype)) {
