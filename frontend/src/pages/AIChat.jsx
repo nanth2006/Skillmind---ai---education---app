@@ -103,26 +103,69 @@ function AIChat() {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const chatEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAttachedFile(file);
+    if (file.type.startsWith("image/")) {
+      setFilePreview(URL.createObjectURL(file));
+    } else {
+      setFilePreview(null);
+    }
+    e.target.value = "";
+  };
+
+  const removeAttachment = () => {
+    setAttachedFile(null);
+    setFilePreview(null);
+  };
+
   const sendMessage = async () => {
-    if (!message.trim() || loading) return;
-    const userMsg = { sender: "user", text: message };
-    setChat(prev => [...prev, userMsg, { sender: "ai", text: "" }]);
+    if ((!message.trim() && !attachedFile) || loading) return;
+
     const currentMsg = message;
+    const currentFile = attachedFile;
+    const currentPreview = filePreview;
+
+    const userMsg = {
+      sender: "user",
+      text: currentMsg,
+      fileName: currentFile?.name,
+      filePreview: currentPreview,
+    };
+    setChat(prev => [...prev, userMsg, { sender: "ai", text: "" }]);
     setMessage("");
+    setAttachedFile(null);
+    setFilePreview(null);
     setLoading(true);
 
     try {
-      const res = await fetch(`${BASE}/api/ai/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: currentMsg }),
-      });
+      let res;
+      if (currentFile) {
+        const formData = new FormData();
+        formData.append("message", currentMsg);
+        formData.append("file", currentFile);
+        res = await fetch(`${BASE}/api/ai/stream`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        res = await fetch(`${BASE}/api/ai/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: currentMsg }),
+        });
+      }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let aiText = "", buffer = "";
@@ -166,63 +209,103 @@ function AIChat() {
   };
 
   return (
-    <div style={chatStyles.wrap}>
+    <div className="chat-wrap">
+      <style>{`
+        .chat-wrap { display:flex; flex-direction:column; height:100%; position:relative; }
+        .chat-empty { position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+        .chat-empty-icon { font-size:52px; margin-bottom:16px; opacity:0.3; }
+        .chat-empty-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:rgba(255,255,255,0.4); margin:0 0 6px; }
+        .chat-empty-sub { font-size:14px; color:rgba(255,255,255,0.2); margin:0; }
+        .chat-box { flex:1; overflow-y:auto; padding:20px 24px; }
+        .chat-row { display:flex; margin-bottom:12px; }
+        .chat-row.user { justify-content:flex-end; }
+        .chat-row.ai { justify-content:flex-start; }
+        .chat-avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#7c3aed,#ec4899); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; margin-right:10px; margin-top:2px; }
+        .chat-bubble { padding:12px 16px; max-width:65%; font-size:14px; line-height:1.65; color:#f1f5f9; white-space:pre-wrap; }
+        .chat-bubble.user { background:linear-gradient(135deg,#7c3aed,#ec4899); border-radius:18px 18px 4px 18px; }
+        .chat-bubble.ai { background:rgba(255,255,255,0.05); border-radius:18px 18px 18px 4px; border:1px solid rgba(139,92,246,0.2); }
+        .chat-attached-img { max-width:100%; border-radius:10px; margin-bottom:8px; display:block; }
+        .chat-attached-file-tag { font-size:12px; background:rgba(255,255,255,0.1); padding:4px 10px; border-radius:8px; display:inline-block; margin-bottom:8px; }
+        .chat-preview-bar { margin:0 24px 10px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(139,92,246,0.25); border-radius:10px; padding:8px 12px; }
+        .chat-preview-img { width:36px; height:36px; object-fit:cover; border-radius:6px; }
+        .chat-preview-name { flex:1; font-size:13px; color:rgba(255,255,255,0.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .chat-preview-remove { background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; font-size:14px; }
+        .chat-input-row { padding:16px 24px; border-top:1px solid rgba(255,255,255,0.06); display:flex; gap:10px; }
+        .chat-attach-btn { width:46px; height:46px; border-radius:12px; border:1px solid rgba(139,92,246,0.25); background:rgba(255,255,255,0.06); color:#f1f5f9; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .chat-input { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(139,92,246,0.25); border-radius:14px; padding:12px 18px; color:#f1f5f9; font-size:14px; outline:none; font-family:'Syne',sans-serif; }
+        .chat-send-btn { width:46px; height:46px; border-radius:12px; border:none; background:linear-gradient(135deg,#7c3aed,#ec4899); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+      `}</style>
+
       {chat.length === 0 && (
-        <div style={chatStyles.empty}>
-          <div style={chatStyles.emptyIcon}>◎</div>
-          <p style={chatStyles.emptyTitle}>Ask me anything</p>
-          <p style={chatStyles.emptySub}>Your personal AI tutor is ready</p>
+        <div className="chat-empty">
+          <div className="chat-empty-icon">◎</div>
+          <p className="chat-empty-title">Ask me anything</p>
+          <p className="chat-empty-sub">Your personal AI tutor is ready</p>
         </div>
       )}
-      <div style={chatStyles.chatBox}>
+
+      <div className="chat-box">
         {chat.map((c, i) => (
-          <div key={i} style={{ display:"flex", justifyContent: c.sender==="user" ? "flex-end" : "flex-start", marginBottom:12 }}>
-            {c.sender === "ai" && (
-              <div style={chatStyles.aiAvatar}>✦</div>
-            )}
-            <div style={{
-              ...chatStyles.bubble,
-              background: c.sender==="user"
-                ? "linear-gradient(135deg,#7c3aed,#ec4899)"
-                : "rgba(255,255,255,0.05)",
-              borderRadius: c.sender==="user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-              border: c.sender==="ai" ? "1px solid rgba(139,92,246,0.2)" : "none",
-            }}>
+          <div key={i} className={`chat-row ${c.sender}`}>
+            {c.sender === "ai" && <div className="chat-avatar">✦</div>}
+            <div className={`chat-bubble ${c.sender}`}>
+              {c.filePreview && (
+                <img src={c.filePreview} alt="attachment" className="chat-attached-img" />
+              )}
+              {c.fileName && !c.filePreview && (
+                <div className="chat-attached-file-tag">📎 {c.fileName}</div>
+              )}
               {c.text}
             </div>
           </div>
         ))}
         <div ref={chatEndRef} />
       </div>
-      <div style={chatStyles.inputRow}>
+
+      {filePreview && (
+        <div className="chat-preview-bar">
+          <img src={filePreview} alt="preview" className="chat-preview-img" />
+          <span className="chat-preview-name">{attachedFile?.name}</span>
+          <button onClick={removeAttachment} className="chat-preview-remove">✕</button>
+        </div>
+      )}
+      {attachedFile && !filePreview && (
+        <div className="chat-preview-bar">
+          <span style={{fontSize:18}}>📄</span>
+          <span className="chat-preview-name">{attachedFile.name}</span>
+          <button onClick={removeAttachment} className="chat-preview-remove">✕</button>
+        </div>
+      )}
+
+      <div className="chat-input-row">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          accept="image/*,.pdf,.docx,.txt"
+          style={{ display: "none" }}
+        />
+        <button
+          onClick={() => fileInputRef.current.click()}
+          className="chat-attach-btn"
+          title="Attach file"
+        >
+          📎
+        </button>
         <input
           value={message}
           onChange={e => setMessage(e.target.value)}
           onKeyDown={e => e.key==="Enter" && sendMessage()}
           placeholder="Ask something..."
-          style={chatStyles.input}
+          className="chat-input"
         />
-        <button onClick={sendMessage} style={chatStyles.sendBtn} disabled={loading}>
+        <button onClick={sendMessage} className="chat-send-btn" disabled={loading}>
           {loading ? <span style={{fontSize:18}}>⋯</span> : "↑"}
         </button>
       </div>
     </div>
   );
 }
-
-const chatStyles = {
-  wrap: { display:"flex", flexDirection:"column", height:"100%", position:"relative" },
-  empty: { position:"absolute", top:"40%", left:"50%", transform:"translate(-50%,-50%)", textAlign:"center", pointerEvents:"none" },
-  emptyIcon: { fontSize:52, marginBottom:16, opacity:0.3 },
-  emptyTitle: { fontFamily:"'Syne',sans-serif", fontSize:22, fontWeight:700, color:"rgba(255,255,255,0.4)", margin:"0 0 6px" },
-  emptySub: { fontSize:14, color:"rgba(255,255,255,0.2)", margin:0 },
-  chatBox: { flex:1, overflowY:"auto", padding:"20px 24px" },
-  aiAvatar: { width:30, height:30, borderRadius:"50%", background:"linear-gradient(135deg,#7c3aed,#ec4899)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"#fff", flexShrink:0, marginRight:10, marginTop:2 },
-  bubble: { padding:"12px 16px", maxWidth:"65%", fontSize:14, lineHeight:1.65, color:"#f1f5f9", whiteSpace:"pre-wrap" },
-  inputRow: { padding:"16px 24px", borderTop:"1px solid rgba(255,255,255,0.06)", display:"flex", gap:10 },
-  input: { flex:1, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(139,92,246,0.25)", borderRadius:14, padding:"12px 18px", color:"#f1f5f9", fontSize:14, outline:"none", fontFamily:"'Syne',sans-serif" },
-  sendBtn: { width:46, height:46, borderRadius:12, border:"none", background:"linear-gradient(135deg,#7c3aed,#ec4899)", color:"#fff", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-};
 
 // ─── Question Generator ───────────────────────────────────────────────────────
 function QuestionGenerator() {
