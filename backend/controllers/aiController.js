@@ -54,6 +54,11 @@ export const streamAI = async (req, res) => {
     res.setHeader("Cache-Control", "no-cache")
     res.setHeader("Connection", "keep-alive")
 
+    if (!process.env.OPENROUTER_API_KEY) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "⚠️ Server misconfiguration: OPENROUTER_API_KEY is missing." } }] })}\n\n`)
+      return res.end()
+    }
+
     const { messages, model } = await buildMessages(message, file)
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -69,6 +74,22 @@ export const streamAI = async (req, res) => {
       }),
     })
 
+    // 🔎 If OpenRouter itself rejected the request (bad key, bad model, etc.)
+    // it won't return an SSE stream — surface that error to the chat instead
+    // of silently piping an empty/garbled response.
+    if (!response.ok) {
+      let errText = ""
+      try {
+        const errJson = await response.json()
+        errText = errJson?.error?.message || JSON.stringify(errJson)
+      } catch {
+        errText = await response.text()
+      }
+      console.error("OpenRouter error:", response.status, errText)
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: `⚠️ AI service error (${response.status}): ${errText}` } }] })}\n\n`)
+      return res.end()
+    }
+
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
 
@@ -80,7 +101,10 @@ export const streamAI = async (req, res) => {
 
     res.end()
   } catch (err) {
-    console.error(err)
+    console.error("streamAI crashed:", err)
+    try {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: `⚠️ Server error: ${err.message}` } }] })}\n\n`)
+    } catch {}
     res.end()
   }
 }
