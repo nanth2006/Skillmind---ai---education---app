@@ -7,7 +7,7 @@ const COLORS  = ["#eff6ff","#f0fdf4","#fef9c3","#fdf4ff","#fff7ed"]
 
 const initForm = { title: "", description: "", duration: "", category: "General", level: "Beginner", isFree: true, price: "", discountPrice: "", paymentLink: "", publishStatus: "published", videoUrl: "" }
 
-const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+const BASE =  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 export default function MyCourses() {
   const [courses, setCourses]   = useState([])
   const [loading, setLoading]   = useState(true)

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import axios from "axios"
 import { showAlert } from "../../components/Alert"
 
-const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+const BASE  = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 const FIELDS = [
   { name: "name",       label: "Full Name",  type: "text",  placeholder: "Enter your full name" },
