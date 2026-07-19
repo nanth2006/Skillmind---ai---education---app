@@ -61,32 +61,57 @@ export const streamAI = async (req, res) => {
 
     const { messages, model } = await buildMessages(message, file)
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        stream: true,
-        messages,
-      }),
-    })
+    const FALLBACK_MODELS = [
+      model,
+      "deepseek/deepseek-chat-v3.1:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "meta-llama/llama-3.1-8b-instruct:free",
+    ]
 
-    // 🔎 If OpenRouter itself rejected the request (bad key, bad model, etc.)
-    // it won't return an SSE stream — surface that error to the chat instead
-    // of silently piping an empty/garbled response.
-    if (!response.ok) {
-      let errText = ""
-      try {
-        const errJson = await response.json()
-        errText = errJson?.error?.message || JSON.stringify(errJson)
-      } catch {
-        errText = await response.text()
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+    let response = null
+    let lastErr = ""
+
+    outer:
+    for (const m of FALLBACK_MODELS) {
+      // Try each model up to 2 times (handles brief provider overload)
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: m,
+            stream: true,
+            messages,
+          }),
+        })
+
+        if (response.ok) break outer
+
+        try {
+          const errJson = await response.clone().json()
+          lastErr = errJson?.error?.message || JSON.stringify(errJson)
+        } catch {
+          lastErr = await response.clone().text()
+        }
+        console.warn(`Model ${m} attempt ${attempt} failed (${response.status}): ${lastErr}`)
+
+        // Only worth retrying the SAME model on a 429 (temporary overload).
+        // Any other error (400/404/etc.) — move straight to the next model.
+        if (response.status !== 429) break
+        if (attempt < 2) await sleep(1500)
       }
-      console.error("OpenRouter error:", response.status, errText)
-      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: `⚠️ AI service error (${response.status}): ${errText}` } }] })}\n\n`)
+    }
+
+    // 🔎 If every fallback model failed, surface the last error to the chat
+    // instead of silently piping an empty/garbled response.
+    if (!response.ok) {
+      console.error("All models failed. Last error:", response.status, lastErr)
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: `⚠️ AI service error (${response.status}): ${lastErr}` } }] })}\n\n`)
       return res.end()
     }
 
