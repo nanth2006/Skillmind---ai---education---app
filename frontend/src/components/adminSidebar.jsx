@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+const BASE  = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 const navLinks = [
   { to: "/admin",             icon: "⊞", label: "Dashboard"   },
