@@ -28,7 +28,7 @@ const buildMessages = async (message, file) => {
         { type: "image_url", image_url: { url: base64Image } },
       ],
     })
-    return { messages, model: "google/gemini-flash-1.5" } // vision-capable model
+    return { messages, model: "google/gemma-4-31b-it:free" } // vision-capable free model
   }
 
   if (file) {
@@ -36,12 +36,12 @@ const buildMessages = async (message, file) => {
     const extracted = await extractTextFromFile(file.buffer, file.originalname)
     const combined = `${userText}\n\n--- Attached file: ${file.originalname} ---\n${(extracted || "").slice(0, 8000)}`
     messages.push({ role: "user", content: combined })
-    return { messages, model: "meta-llama/llama-3-8b-instruct" }
+    return { messages, model: "meta-llama/llama-3.3-70b-instruct:free" }
   }
 
   // Plain text message
   messages.push({ role: "user", content: userText })
-  return { messages, model: "meta-llama/llama-3-8b-instruct" }
+  return { messages, model: "meta-llama/llama-3.3-70b-instruct:free" }
 }
 
 // ✅ STREAMING CHAT
