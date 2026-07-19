@@ -4,7 +4,7 @@ import API from "../api"
 import Sidebar from "../components/Sidebar"
 import { showAlert } from "../components/Alert"
 
-const BASE = "http://localhost:5000"
+const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function OnlineCourses() {
   const [courses, setCourses] = useState([])

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const BASE = "http://localhost:5000";
+const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar({ activePage, setActivePage }) {

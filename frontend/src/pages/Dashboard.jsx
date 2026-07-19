@@ -11,7 +11,7 @@ import {
 } from "recharts";
 
 import Sidebar from "../components/Sidebar";
-
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 function Dashboard() {
   const nav = useNavigate();
 
@@ -26,7 +26,7 @@ function Dashboard() {
 
       // 📊 courses
       const courseRes = await axios.get(
-        "http://localhost:5000/api/courses",
+        `${BASE}/api/courses`,
         { headers: { Authorization: token } }
       );
       setCourses(courseRes.data);
@@ -34,7 +34,7 @@ function Dashboard() {
       // 👤 profile
       try {
         const profileRes = await axios.get(
-          "http://localhost:5000/api/profile/me",
+          `${BASE}/api/profile/me`,
           { headers: { Authorization: token } }
         );
 
@@ -63,7 +63,7 @@ function Dashboard() {
     const token = localStorage.getItem("token");
 
     await axios.put(
-  "http://localhost:5000/api/profile/update",
+  `${BASE}/api/profile/update`,
   form,
   {
     headers: { Authorization: `Bearer ${token}` }
@@ -96,7 +96,7 @@ function Dashboard() {
               onClick={() => setShowModal(true)}
             >
               <img
-                src={`http://localhost:5000/uploads/${profile.avatar}`}
+                src={`${BASE}/uploads/${profile.avatar}`}
                 width="40"
                 height="40"
                 style={{ borderRadius: "50%" }}

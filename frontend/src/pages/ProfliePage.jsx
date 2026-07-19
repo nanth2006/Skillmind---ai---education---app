@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const BASE = "http://localhost:5000";
+const BASE = const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 const FIELDS = [
   { name: "name",       label: "Full Name",    type: "text",   placeholder: "Enter your name"        },
